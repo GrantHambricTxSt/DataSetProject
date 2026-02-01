@@ -67,7 +67,7 @@ def main():
     log(f"Frames: {NUM_FRAMES}, Resolution: {RESOLUTION}")
 
     # Reset Replicator state (safe when re-running)
-    rep.reset()
+    #rep.reset()
 
     # -----------------------------
     # Scene: simple tabletop plane (fast)
