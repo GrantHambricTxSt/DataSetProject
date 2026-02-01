@@ -7,10 +7,17 @@
 #
 # If your environment doesn't have python.sh, use the Isaac Sim provided launcher for your version.
 
+from omni.isaac.kit import SimulationApp
+simulation_app = SimulationApp({"headless": True})
+
 import os
 import random
+import math
 import carb
 import omni.replicator.core as rep
+
+def cos_deg(deg): return math.cos(math.radians(deg))
+def sin_deg(deg): return math.sin(math.radians(deg))
 
 # -----------------------------
 # CONFIG (scale these later)
@@ -125,6 +132,8 @@ def main():
         # -----------------------------
         # Per-frame randomization
         # -----------------------------
+
+
         def randomize_frame():
             # Choose how many objects this frame
             k = random.randint(MIN_OBJECTS, MAX_OBJECTS)
@@ -170,8 +179,8 @@ def main():
             # Camera random orbit
             radius = random.uniform(*CAM_RADIUS_RANGE)
             theta = random.uniform(0, 360)
-            cam_x = radius * (math_cos_deg(theta))
-            cam_y = radius * (math_sin_deg(theta))
+            cam_x = radius * cos_deg(theta)
+            cam_y = radius * sin_deg(theta)
             cam_z = random.uniform(*CAM_HEIGHT_RANGE)
 
             look_at_z = random.uniform(*CAM_LOOK_AT_Z_RANGE)
@@ -194,9 +203,7 @@ def main():
                             rotation=(random.uniform(40, 85), random.uniform(10, 80), 0))
 
         # Tiny trig helpers (avoid importing numpy just for this)
-        import math
-        def math_cos_deg(deg): return math.cos(math.radians(deg))
-        def math_sin_deg(deg): return math.sin(math.radians(deg))
+        
 
         # Register randomizer
         rep.randomizer.register(randomize_frame)
@@ -206,8 +213,19 @@ def main():
             rep.randomizer.randomize_frame()
 
     log("Starting orchestration…")
+    for _ in range(30):
+        simulation_app.update()
+
     rep.orchestrator.run()
     log("Done.")
 
 if __name__ == "__main__":
     main()
+
+
+
+
+for _ in range(120):
+    simulation_app.update()
+
+simulation_app.close()
