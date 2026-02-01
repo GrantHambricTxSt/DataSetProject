@@ -1,0 +1,213 @@
+# ambiguous_mini.py
+# Scaled-down "final style" Replicator script: fast test run, same structure as full dataset.
+# Outputs: RGB + 2D tight bboxes (and basic metadata)
+#
+# Run (headless):
+#   ./python.sh ambiguous_mini.py --/omni/replicator/rt_subframes=4
+#
+# If your environment doesn't have python.sh, use the Isaac Sim provided launcher for your version.
+
+import os
+import random
+import carb
+import omni.replicator.core as rep
+
+# -----------------------------
+# CONFIG (scale these later)
+# -----------------------------
+SEED = 7
+
+NUM_FRAMES = int(os.environ.get("NUM_FRAMES", "60"))     # scale to 2k+ later
+RESOLUTION = (int(os.environ.get("W", "960")), int(os.environ.get("H", "540")))  # scale to 1920x1080 later
+
+OUTPUT_DIR = os.environ.get("OUT_DIR", "/workspace/output/ambiguous_mini")
+
+# Your URLs (as requested)
+ASSET_URLS = [
+    "https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/4.5/Isaac/Props/Mugs/SM_Mug_A2.usd",
+    "https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/4.5/Isaac/Props/YCB/Axis_Aligned/006_mustard_bottle.usd",
+    "https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/4.5/Isaac/Props/YCB/Axis_Aligned_Physics/005_tomato_soup_can.usd",
+]
+
+# For "ambiguity": allow partial occlusion and similar poses
+MIN_OBJECTS = 2
+MAX_OBJECTS = 3
+
+# World/tabletop sizes (meters-ish; Isaac units are usually meters)
+TABLE_SIZE_X = 0.9
+TABLE_SIZE_Y = 0.9
+TABLE_Z = 0.0
+
+# Camera orbit ranges (simple + stable)
+CAM_RADIUS_RANGE = (0.55, 0.85)
+CAM_HEIGHT_RANGE = (0.25, 0.55)
+CAM_LOOK_AT_Z_RANGE = (0.05, 0.20)
+
+# Light randomization
+KEY_LIGHT_INTENSITY = (250, 900)
+FILL_LIGHT_INTENSITY = (50, 300)
+
+# -----------------------------
+# Helpers
+# -----------------------------
+def ensure_dir(path: str):
+    os.makedirs(path, exist_ok=True)
+
+def log(msg: str):
+    carb.log_info(f"[ambiguous_mini] {msg}")
+
+# -----------------------------
+# Main
+# -----------------------------
+def main():
+    random.seed(SEED)
+    ensure_dir(OUTPUT_DIR)
+
+    log(f"Output: {OUTPUT_DIR}")
+    log(f"Frames: {NUM_FRAMES}, Resolution: {RESOLUTION}")
+
+    # Reset Replicator state (safe when re-running)
+    rep.reset()
+
+    # -----------------------------
+    # Scene: simple tabletop plane (fast)
+    # -----------------------------
+    with rep.new_layer():
+        # Table plane
+        table = rep.create.plane(
+            position=(0, 0, TABLE_Z),
+            rotation=(0, 0, 0),
+            scale=(TABLE_SIZE_X, TABLE_SIZE_Y, 1.0),
+            visible=True,
+        )
+
+        # Optional: a low wall/occluder (creates ambiguity without heavy assets)
+        # We’ll animate its position so sometimes it blocks part of objects.
+        occluder = rep.create.cube(
+            position=(0.0, 0.0, 0.10),
+            scale=(0.12, 0.40, 0.20),
+            visible=True,
+        )
+
+        # Camera
+        camera = rep.create.camera()
+        render_product = rep.create.render_product(camera, RESOLUTION)
+
+        # Lights: one key + one fill
+        key = rep.create.light(light_type="distant", intensity=600, rotation=(45, -30, 0))
+        fill = rep.create.light(light_type="distant", intensity=150, rotation=(65, 40, 0))
+
+        # -----------------------------
+        # Create objects (we’ll toggle visibility per frame)
+        # -----------------------------
+        objs = []
+        for i, url in enumerate(ASSET_URLS):
+            obj = rep.create.from_usd(url)
+            # Give them stable names for annotations
+            obj = obj.node
+            rep.utils.set_target_prims([obj], semantics=[("class", f"obj_{i}")])
+            objs.append(obj)
+
+        # Writer: RGB + bbox2d tight + basic metadata
+        writer = rep.WriterRegistry.get("BasicWriter")
+        writer.initialize(
+            output_dir=OUTPUT_DIR,
+            rgb=True,
+            bounding_box_2d_tight=True,
+            # You can add these later when scaling:
+            # bounding_box_2d_loose=True,
+            # segmentation=True,
+            # depth=True,
+            # normals=True,
+        )
+        writer.attach([render_product])
+
+        # -----------------------------
+        # Per-frame randomization
+        # -----------------------------
+        def randomize_frame():
+            # Choose how many objects this frame
+            k = random.randint(MIN_OBJECTS, MAX_OBJECTS)
+            chosen = set(random.sample(range(len(objs)), k))
+
+            # Visibility toggling: chosen visible, others hidden
+            for idx, prim in enumerate(objs):
+                rep.modify.visibility(visible=(idx in chosen), input_prims=[prim])
+
+            # Randomize object placement/rotation on table
+            for idx, prim in enumerate(objs):
+                if idx not in chosen:
+                    continue
+
+                # Sample x,y in table bounds
+                x = random.uniform(-TABLE_SIZE_X * 0.35, TABLE_SIZE_X * 0.35)
+                y = random.uniform(-TABLE_SIZE_Y * 0.35, TABLE_SIZE_Y * 0.35)
+                yaw = random.uniform(0, 360)
+
+                # Small tilt sometimes to create “ambiguous” viewpoints
+                pitch = random.uniform(-6, 6)
+                roll = random.uniform(-6, 6)
+
+                rep.modify.pose(
+                    input_prims=[prim],
+                    position=(x, y, TABLE_Z + 0.02),
+                    rotation=(pitch, roll, yaw),
+                )
+
+                # Mild scale jitter (subtle ambiguity)
+                s = random.uniform(0.92, 1.06)
+                rep.modify.pose(input_prims=[prim], scale=(s, s, s))
+
+            # Occluder moves: sometimes blocks part of the scene
+            if random.random() < 0.65:
+                ox = random.uniform(-0.10, 0.10)
+                oy = random.uniform(-0.25, 0.25)
+                rep.modify.pose(input_prims=[occluder], position=(ox, oy, 0.10))
+                rep.modify.visibility(visible=True, input_prims=[occluder])
+            else:
+                rep.modify.visibility(visible=False, input_prims=[occluder])
+
+            # Camera random orbit
+            radius = random.uniform(*CAM_RADIUS_RANGE)
+            theta = random.uniform(0, 360)
+            cam_x = radius * (math_cos_deg(theta))
+            cam_y = radius * (math_sin_deg(theta))
+            cam_z = random.uniform(*CAM_HEIGHT_RANGE)
+
+            look_at_z = random.uniform(*CAM_LOOK_AT_Z_RANGE)
+            rep.modify.pose(
+                input_prims=[camera],
+                position=(cam_x, cam_y, cam_z),
+                look_at=(0.0, 0.0, look_at_z),
+            )
+
+            # Light jitter
+            rep.modify.attribute(input_prims=[key], attribute="intensity",
+                                 value=random.uniform(*KEY_LIGHT_INTENSITY))
+            rep.modify.attribute(input_prims=[fill], attribute="intensity",
+                                 value=random.uniform(*FILL_LIGHT_INTENSITY))
+
+            # Light directions a bit
+            rep.modify.pose(input_prims=[key],
+                            rotation=(random.uniform(25, 70), random.uniform(-60, 10), 0))
+            rep.modify.pose(input_prims=[fill],
+                            rotation=(random.uniform(40, 85), random.uniform(10, 80), 0))
+
+        # Tiny trig helpers (avoid importing numpy just for this)
+        import math
+        def math_cos_deg(deg): return math.cos(math.radians(deg))
+        def math_sin_deg(deg): return math.sin(math.radians(deg))
+
+        # Register randomizer
+        rep.randomizer.register(randomize_frame)
+
+        # Trigger: run per frame
+        with rep.trigger.on_frame(num_frames=NUM_FRAMES):
+            rep.randomizer.randomize_frame()
+
+    log("Starting orchestration…")
+    rep.orchestrator.run()
+    log("Done.")
+
+if __name__ == "__main__":
+    main()
