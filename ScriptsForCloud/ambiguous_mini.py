@@ -88,6 +88,21 @@ def main():
             visible=True,
         )
 
+        # -----------------------------
+        # Occluders (created once)
+        # -----------------------------
+        occluders = []
+        NUM_OCCLUDERS = 3
+
+        for _ in range(NUM_OCCLUDERS):
+            occ = rep.create.cube(
+                position=(0.0, 0.0, 0.15),
+                scale=(0.10, 0.45, 0.22),  # thin vertical bars
+                visible=False,
+            )
+            occluders.append(occ.node)
+
+
         # Optional: a low wall/occluder (creates ambiguity without heavy assets)
         # We’ll animate its position so sometimes it blocks part of objects.
         occluder = rep.create.cube(
@@ -180,6 +195,30 @@ def main():
             else:
                 rep.modify.visibility(input_prims=[occluder], value=False)
 
+            # -----------------------------
+            # Occluder randomization
+            # -----------------------------
+            num_active = random.randint(0, len(occluders))
+
+            active_ids = set(random.sample(range(len(occluders)), num_active))
+
+            for i, occ in enumerate(occluders):
+                if i in active_ids:
+                    ox = random.uniform(-0.15, 0.15)
+                    oy = random.uniform(-0.30, 0.30)
+                    oz = random.uniform(0.10, 0.20)
+
+                    rep.modify.pose(
+                        input_prims=[occ],
+                        position=(ox, oy, oz),
+                        rotation=(0, random.uniform(0, 180), 0),
+                    )
+                    rep.modify.visibility(input_prims=[occ], value=True)
+                else:
+                    rep.modify.visibility(input_prims=[occ], value=False)
+
+
+
             # Camera random orbit
             radius = random.uniform(*CAM_RADIUS_RANGE)
             theta = random.uniform(0, 360)
@@ -215,7 +254,7 @@ def main():
         with rep.trigger.on_frame(max_execs=NUM_FRAMES):
             rep.randomizer.randomize_frame()
 
-        log("Starting orchestration…")
+    log("Starting orchestration…")
     for _ in range(30):
         simulation_app.update()
 
