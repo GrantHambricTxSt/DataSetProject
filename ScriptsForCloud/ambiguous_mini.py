@@ -234,8 +234,11 @@ def main():
             )
 
             # Light jitter
-            rep.modify.attribute(input_prims=[key], attribute="intensity",
-                                 value=random.uniform(*KEY_LIGHT_INTENSITY))
+            rep.modify.attribute(
+                input_prims=[key],
+                attributes={"intensity": random.uniform(*KEY_LIGHT_INTENSITY)}
+            )
+
             rep.modify.attribute(input_prims=[fill], attribute="intensity",
                                  value=random.uniform(*FILL_LIGHT_INTENSITY))
 
