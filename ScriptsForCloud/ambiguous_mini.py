@@ -113,9 +113,9 @@ def main():
             # Give them stable names for annotations
             obj = obj.node
             rep.modify.semantics(
-    input_prims=[obj],
-    semantics=[("class", f"obj_{i}")]
-)
+                input_prims=[obj],
+                semantics=[("class", f"obj_{i}")]
+            )
 
             objs.append(obj)
 
@@ -145,7 +145,7 @@ def main():
 
             # Visibility toggling: chosen visible, others hidden
             for idx, prim in enumerate(objs):
-                rep.modify.visibility(visible=(idx in chosen), input_prims=[prim])
+                rep.modify.visibility(input_prims=[prim], value=(idx in chosen))
 
             # Randomize object placement/rotation on table
             for idx, prim in enumerate(objs):
@@ -176,9 +176,9 @@ def main():
                 ox = random.uniform(-0.10, 0.10)
                 oy = random.uniform(-0.25, 0.25)
                 rep.modify.pose(input_prims=[occluder], position=(ox, oy, 0.10))
-                rep.modify.visibility(visible=True, input_prims=[occluder])
+                rep.modify.visibility(input_prims=[occluder], value=True)
             else:
-                rep.modify.visibility(visible=False, input_prims=[occluder])
+                rep.modify.visibility(input_prims=[occluder], value=False)
 
             # Camera random orbit
             radius = random.uniform(*CAM_RADIUS_RANGE)
@@ -206,30 +206,29 @@ def main():
             rep.modify.pose(input_prims=[fill],
                             rotation=(random.uniform(40, 85), random.uniform(10, 80), 0))
 
-        # Tiny trig helpers (avoid importing numpy just for this)
         
 
         # Register randomizer
         rep.randomizer.register(randomize_frame)
 
         # Trigger: run per frame
-        with rep.trigger.on_frame(num_frames=NUM_FRAMES):
+        with rep.trigger.on_frame(max_execs=NUM_FRAMES):
             rep.randomizer.randomize_frame()
 
-    log("Starting orchestration…")
+        log("Starting orchestration…")
     for _ in range(30):
         simulation_app.update()
 
     rep.orchestrator.run()
-    log("Done.")
+
+    log("Done. Flushing writer...")
+    for _ in range(240):
+        simulation_app.update()
+
+    simulation_app.close()
+
 
 if __name__ == "__main__":
     main()
 
 
-
-
-for _ in range(120):
-    simulation_app.update()
-
-simulation_app.close()
