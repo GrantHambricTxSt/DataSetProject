@@ -40,7 +40,7 @@ def main():
         
         table = rep.create.cube(
             position=(0, 0, TABLE_HEIGHT / 2),
-            scale=(0.5, 0.5, TABLE_HEIGHT),
+            scale=(1.0, 1.0, TABLE_HEIGHT),
             visible=True,
             ## semantics=[("class", "table")] If table needs to be detected as well, remove the comment
         )
@@ -58,8 +58,8 @@ def main():
         
         render_product = rep.create.render_product(camera, resolution = RESOLUTION)
         
-        key_light = rep.create.light(light_type="distant", intensity=600, rotation=(45, -30, 0))
-        fill_light = rep.create.light(light_type="distant", intensity=150, rotation=(65, 40, 0))
+        key_light = rep.create.light(light_type="Sphere", intensity=0, position=(0,0,0), scale=0.15)
+        fill_light = rep.create.light(light_type="Sphere", intensity=0, position=(0,0,0), scale=0.2)
         
         with table:
             rep.physics.collider()
@@ -75,6 +75,9 @@ def main():
                 
                 ## Move the obj under the cam so that it is not seen by the camera
                 rep.modify.pose(position=(0, 0, -500))
+                
+                rep.physics.rigid_body()
+                rep.physics.collider()
             
             assets.append(obj)
     
@@ -101,17 +104,19 @@ def main():
             rep.modify.pose(rotation=rep.distribution.uniform((0, 0, 0), (0, 0, 360)))
         
         with camera:
-            rep.modify.pose(
-                position=rep.distribution.uniform((0.55, 0, 0.25), (0.85, 0, 0.55)),
+                rep.modify.pose(
+                position=rep.distribution.uniform((0.55, 0, 1.05), (0.85, 0, 1.35)),
                 look_at=(0,0,TABLE_SURFACE)
             )
         
         with key_light:
-            rep.modify.attribute("intensity", rep.distribution.uniform(250, 900))
-            rep.modify.pose(rotation=rep.distribution.uniform((25, -60, 0), (70, 10, 0)))
+            rep.modify.attribute("inputs:intensity", rep.distribution.uniform(30000, 80000))
+            rep.modify.attribute("inputs:radius", rep.distribution.uniform(0.1, 0.2))
+            rep.modify.pose(position=rep.distribution.uniform((-0.5, -0.5, 1.2), (0.5, 0.5, 1.8)))
         
         with fill_light:
-            rep.modify.attribute("intensity", rep.distribution.uniform(50, 300))
+            rep.modify.attribute("inputs:intensity", rep.distribution.uniform(2000, 15000))
+            rep.modify.pose(position=rep.distribution.uniform((-0.8, -0.8, 1.0), (0.8, 0.8, 1.5)))
         
     writer = rep.WriterRegistry.get("BasicWriter")
     writer.initialize(output_dir=OUTPUT_DIR, rgb=True, bounding_box_2d_tight=True)
