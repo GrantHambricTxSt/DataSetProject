@@ -112,7 +112,11 @@ def main():
             obj = rep.create.from_usd(url)
             # Give them stable names for annotations
             obj = obj.node
-            rep.utils.set_target_prims([obj], semantics=[("class", f"obj_{i}")])
+            rep.modify.semantics(
+    input_prims=[obj],
+    semantics=[("class", f"obj_{i}")]
+)
+
             objs.append(obj)
 
         # Writer: RGB + bbox2d tight + basic metadata
