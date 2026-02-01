@@ -111,13 +111,40 @@ def main():
             visible=True,
         )
 
+        # -----------------------------
+        # Clutter pool (created once)
+        # -----------------------------
+        CLUTTER_POOL = 12  # total clutter prims available
+        clutter_prims = []
+
+        for _ in range(CLUTTER_POOL):
+            # mix primitive types for variety
+            kind = random.choice(["sphere", "cube", "cylinder"])
+            if kind == "sphere":
+                c = rep.create.sphere(position=(0,0,-10), scale=0.03, visible=False)
+            elif kind == "cylinder":
+                c = rep.create.cylinder(position=(0,0,-10), scale=(0.03, 0.03, 0.08), visible=False)
+            else:
+                c = rep.create.cube(position=(0,0,-10), scale=0.04, visible=False)
+
+            clutter_prims.append(c.node)
+
+
         # Camera
         camera = rep.create.camera()
         render_product = rep.create.render_product(camera, RESOLUTION)
 
         # Lights: one key + one fill
-        key = rep.create.light(light_type="distant", intensity=600, rotation=(45, -30, 0))
-        fill = rep.create.light(light_type="distant", intensity=150, rotation=(65, 40, 0))
+        # -----------------------------
+
+
+        # Lights (created once)
+        # -----------------------------
+        key = rep.create.light(light_type="distant", intensity=2500)
+        fill = rep.create.light(light_type="distant", intensity=800)
+        rim  = rep.create.light(light_type="distant", intensity=600)
+
+
 
         # -----------------------------
         # Create objects (we’ll toggle visibility per frame)
@@ -184,7 +211,8 @@ def main():
 
                 # Mild scale jitter (subtle ambiguity)
                 s = random.uniform(0.92, 1.06)
-                rep.modify.pose(input_prims=[prim], scale=(s, s, s))
+                rep.modify.scale(input_prims=[prim], scale=(s, s, s))
+
 
             # Occluder moves: sometimes blocks part of the scene
             if random.random() < 0.65:
@@ -194,6 +222,49 @@ def main():
                 rep.modify.visibility(input_prims=[occluder], value=True)
             else:
                 rep.modify.visibility(input_prims=[occluder], value=False)
+
+
+            # -----------------------------
+            # Photometric randomization
+            # -----------------------------
+            # Intensities
+            rep.modify.attribute(input_prims=[key], attributes={"intensity": random.uniform(1200, 7000)})
+            rep.modify.attribute(input_prims=[fill], attributes={"intensity": random.uniform(200, 2500)})
+            rep.modify.attribute(input_prims=[rim],  attributes={"intensity": random.uniform(0, 1500)})
+
+            # Directions (rotate distant lights)
+            rep.modify.pose(input_prims=[key],  rotation=(random.uniform(-70,-20), random.uniform(-40,40), 0))
+            rep.modify.pose(input_prims=[fill], rotation=(random.uniform(-70,-20), random.uniform(120,220), 0))
+            rep.modify.pose(input_prims=[rim],  rotation=(random.uniform(-80,-10), random.uniform(-180,180), 0))
+            rep.modify.attribute(input_prims=[key], attributes={"color": (random.uniform(0.9,1.0), random.uniform(0.85,1.0), random.uniform(0.8,1.0))})
+
+
+
+
+            # -----------------------------
+            # Clutter randomization
+            # -----------------------------
+            num_clutter = random.randint(0, 5)  # 0-5 clutter items this frame
+            active = set(random.sample(range(len(clutter_prims)), num_clutter))
+
+            for i, prim in enumerate(clutter_prims):
+                if i in active:
+                    # scatter around tabletop center
+                    x = random.uniform(-0.30, 0.30)
+                    y = random.uniform(-0.30, 0.30)
+                    z = random.uniform(0.03, 0.10)
+
+                    rep.modify.pose(
+                        input_prims=[prim],
+                        position=(x, y, z),
+                        rotation=(random.uniform(0,180), random.uniform(0,180), random.uniform(0,180)),
+                    )
+                    rep.modify.scale(input_prims=[prim], scale=random.uniform(0.6, 1.4))
+                    rep.modify.visibility(input_prims=[prim], value=True)
+                else:
+                    rep.modify.visibility(input_prims=[prim], value=False)
+
+
 
             # -----------------------------
             # Occluder randomization
@@ -234,19 +305,22 @@ def main():
             )
 
             # Light jitter
-            rep.modify.attribute(
-                input_prims=[key],
-                attributes={"intensity": random.uniform(*KEY_LIGHT_INTENSITY)}
-            )
+            # 
+            # rep.modify.attribute(
+                # input_prims=[key],
+                # attributes={"intensity": random.uniform(*KEY_LIGHT_INTENSITY)}
+            # )
 
-            rep.modify.attribute(input_prims=[fill], attribute="intensity",
-                                 value=random.uniform(*FILL_LIGHT_INTENSITY))
+            # rep.modify.attribute(
+                # input_prims=[fill],
+                # attributes={"intensity": random.uniform(*FILL_LIGHT_INTENSITY)}
+            # )
 
             # Light directions a bit
-            rep.modify.pose(input_prims=[key],
-                            rotation=(random.uniform(25, 70), random.uniform(-60, 10), 0))
-            rep.modify.pose(input_prims=[fill],
-                            rotation=(random.uniform(40, 85), random.uniform(10, 80), 0))
+            # rep.modify.pose(input_prims=[key],
+                            # rotation=(random.uniform(25, 70), random.uniform(-60, 10), 0))
+            # rep.modify.pose(input_prims=[fill],
+                            # rotation=(random.uniform(40, 85), random.uniform(10, 80), 0))
 
         
 
