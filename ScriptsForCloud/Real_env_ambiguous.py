@@ -1,10 +1,10 @@
 from omni.isaac.kit import SimulationApp
+simulation_app = SimulationApp({"headless": True})
+
 import carb
 import os
 import omni.usd
 import omni.replicator.core as rep
-
-simulation_app = SimulationApp({"headless": True})
 
 SEED = 7
 
