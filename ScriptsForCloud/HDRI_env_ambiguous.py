@@ -1,17 +1,17 @@
 from omni.isaac.kit import SimulationApp
+simulation_app = SimulationApp({"headless": True})
+
 import carb
 import os
 import omni.usd
 import omni.replicator.core as rep
-
-simulation_app = SimulationApp({"headless": True})
 
 SEED = 7
 
 NUM_FRAMES = int(os.environ.get("NUM_FRAMES", "60"))     # scale to 2k+ later
 RESOLUTION = (int(os.environ.get("W", "960")), int(os.environ.get("H", "540")))  # scale to 1920x1080 later
 
-OUTPUT_DIR = os.environ.get("OUT_DIR", "/workspace/output/real_evn_ambiguous")
+OUTPUT_DIR = os.environ.get("OUT_DIR", "/workspace/output/HDRI_evn_ambiguous")
 
 MIN_OBJECTS = 2
 MAX_OBJECTS = 3
