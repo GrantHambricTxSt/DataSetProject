@@ -6,6 +6,7 @@
 #   ./python.sh ambiguous_mini.py --/omni/replicator/rt_subframes=4
 #
 # If your environment doesn't have python.sh, use the Isaac Sim provided launcher for your version.
+print("=== ambiguous_mini.py STARTED ===", flush=True)
 
 from omni.isaac.kit import SimulationApp
 simulation_app = SimulationApp({"headless": True})
