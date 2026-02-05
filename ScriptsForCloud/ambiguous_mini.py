@@ -336,16 +336,21 @@ def main():
     for _ in range(30):
         simulation_app.update()
 
-    rep.orchestrator.run()
+import time
 
-    log("Done. Flushing writer...")
-    for _ in range(240):
-        simulation_app.update()
+print("STARTING REPLICATOR", flush=True)
 
-    simulation_app.close()
+rep.orchestrator.run(num_frames=5)
 
+t0 = time.time()
+while rep.orchestrator.is_running():
+    simulation_app.update()
+    if time.time() - t0 > 120:
+        print("TIMEOUT waiting for replicator", flush=True)
+        break
 
-if __name__ == "__main__":
-    main()
+print("REPLICATOR FINISHED", flush=True)
 
+simulation_app.close()
+print("SIMULATION CLOSED", flush=True)
 
