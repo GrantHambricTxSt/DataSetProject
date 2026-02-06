@@ -81,27 +81,38 @@ def randomize_scene():
 # ----------------------------
 # BUILD GRAPH (ONCE)
 # ----------------------------
+# ----------------------------
+# BUILD GRAPH (ONCE)
+# ----------------------------
 with rep.new_layer():
+    # Create your scene ONCE
     randomize_scene()
     randomize_lighting()
 
-rep.orchestrator.run()   # IMPORTANT: no frame count here
-
-print("STARTING FRAME LOOP", flush=True)
+# Register randomizer so it can be executed per frame
+rep.randomizer.register(randomize_scene)
+rep.randomizer.register(randomize_lighting)
 
 # ----------------------------
-# FRAME LOOP (THIS IS THE KEY)
+# PER-FRAME TRIGGER (THIS is the key)
 # ----------------------------
-for frame in range(NUM_FRAMES):
-    print(f"Frame {frame}", flush=True)
+with rep.trigger.on_frame(max_execs=NUM_FRAMES):
+    rep.randomizer.randomize_scene()
+    rep.randomizer.randomize_lighting()
 
-    with rep.new_layer():
-        randomize_scene()
-        randomize_lighting()
+print("STARTING REPLICATOR", flush=True)
+rep.orchestrator.run()
 
+# Advance frames so triggers fire and writer writes
+for _ in range(NUM_FRAMES):
     simulation_app.update()
-    time.sleep(0.05)
+    time.sleep(0.03)
 
 print("REPLICATOR FINISHED", flush=True)
+
+# Avoid simulation_app.close() on this build
+import os
+os._exit(0)
+
 
 simulation_app.close()
