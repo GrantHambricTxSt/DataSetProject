@@ -1,15 +1,5 @@
-# ambiguous_mini.py
-# Fast headless Replicator mini-test that ACTUALLY WRITES output.
-
+# ambiguous_mini.py (Isaac Sim 2023.1.1 safe)
 print("=== ambiguous_mini.py STARTED ===", flush=True)
-
-from omni.isaac.kit import SimulationApp
-simulation_app = SimulationApp({
-    "headless": True,
-    "renderer": "RayTracedLighting",
-    "windowing": "None",
-})
-
 
 import os
 import sys
@@ -17,20 +7,25 @@ import time
 import random
 import math
 from datetime import datetime
+import glob
 
 import carb
 import omni.replicator.core as rep
+from omni.isaac.kit import SimulationApp
 
+# Force headless RTX path as much as 2023.1.1 allows
+simulation_app = SimulationApp({
+    "headless": True,
+    "renderer": "RayTracedLighting",
+})
 
 def cos_deg(deg): return math.cos(math.radians(deg))
 def sin_deg(deg): return math.sin(math.radians(deg))
-
 
 # -----------------------------
 # CONFIG
 # -----------------------------
 SEED = 7
-
 NUM_FRAMES = int(os.environ.get("NUM_FRAMES", "60"))
 RESOLUTION = (int(os.environ.get("W", "960")), int(os.environ.get("H", "540")))
 
@@ -54,13 +49,11 @@ CAM_RADIUS_RANGE = (0.55, 0.85)
 CAM_HEIGHT_RANGE = (0.25, 0.55)
 CAM_LOOK_AT_Z_RANGE = (0.05, 0.20)
 
-
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
 def log(msg: str):
     carb.log_info(f"[ambiguous_mini] {msg}")
-
 
 def main():
     random.seed(SEED)
@@ -155,11 +148,9 @@ def main():
                     rotation=(pitch, roll, yaw),
                 )
 
-            # bars sometimes visible
             for occ_prim in occluders:
                 rep.modify.visibility(input_prims=[occ_prim], value=(random.random() < 0.45))
 
-            # move wall occluder
             ox = random.uniform(-0.15, 0.15)
             oy = random.uniform(-0.05, 0.25)
             rep.modify.pose(
@@ -168,7 +159,6 @@ def main():
                 rotation=(0, 0, random.uniform(-20, 20)),
             )
 
-            # clutter
             active = random.randint(2, 6)
             selected = random.sample(clutter_prims, active)
             for prim in clutter_prims:
@@ -184,7 +174,6 @@ def main():
                     rotation=(0, 0, random.uniform(0, 360)),
                 )
 
-            # camera orbit
             r = random.uniform(*CAM_RADIUS_RANGE)
             theta = random.uniform(0, 360)
             cam_x = r * cos_deg(theta)
@@ -202,36 +191,56 @@ def main():
         with rep.trigger.on_frame(max_execs=NUM_FRAMES):
             rep.randomizer.randomize_frame()
 
-    # --------- IMPORTANT PART (this is what fixes "no output") ---------
+    # Warmup
     log("Warmup updates…")
-    for _ in range(60):
+    for _ in range(120):
         simulation_app.update()
 
-    # reset orchestrator so the graph starts clean
+    # Reset if available
     try:
         rep.orchestrator.reset()
     except Exception:
         pass
 
-    print("STARTING REPLICATOR (stepping 1 frame at a time)", flush=True)
+    print("STARTING REPLICATOR (run + update loop)", flush=True)
 
-    # Step 1 frame at a time so writers actually flush
-    for i in range(NUM_FRAMES):
-        rep.orchestrator.step(1)
+    # 2023.1.1: run() + update loop is more reliable than step()
+    rep.orchestrator.run()
+
+    # Drive Kit long enough for frames + flush
+    ticks = NUM_FRAMES + 240
+    for i in range(ticks):
         simulation_app.update()
-        if i % 10 == 0:
-            print(f"[ambiguous_mini] stepped {i}/{NUM_FRAMES}", flush=True)
+        if i % 60 == 0:
+            print(f"[ambiguous_mini] update tick {i}/{ticks}", flush=True)
 
-    # extra flush frames
-    for _ in range(30):
+    # Stop (safe)
+    try:
+        rep.orchestrator.stop()
+    except Exception:
+        pass
+
+    # Extra flush
+    for _ in range(120):
         simulation_app.update()
 
     print("REPLICATOR FINISHED", flush=True)
     print(f"[ambiguous_mini] Wrote to: {OUTPUT_DIR}", flush=True)
 
+    # Assert output exists (INSIDE main)
+    rgb_dir = os.path.join(OUTPUT_DIR, "rgb")
+    rgb_files = glob.glob(os.path.join(rgb_dir, "*.png"))
+    print(f"[ambiguous_mini] rgb_dir={rgb_dir}", flush=True)
+    print(f"[ambiguous_mini] rgb_files_found={len(rgb_files)}", flush=True)
+
+    if len(rgb_files) == 0:
+        raise RuntimeError(
+            "No RGB images were written. Replicator ran, but render/writer did not produce frames. "
+            "Next checks: asset downloads reachable, renderer init, permissions, or graphics context."
+        )
+
     simulation_app.close()
     sys.exit(0)
-
 
 if __name__ == "__main__":
     main()
