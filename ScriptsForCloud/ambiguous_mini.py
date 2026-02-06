@@ -340,17 +340,19 @@ import time
 
 print("STARTING REPLICATOR", flush=True)
 
-rep.orchestrator.run(num_frames=5)
+# Run replicator for NUM_FRAMES
+rep.orchestrator.run(num_frames=NUM_FRAMES)
 
-t0 = time.time()
-while rep.orchestrator.is_running():
+# Allow frames to flush/render in headless mode
+for _ in range(NUM_FRAMES + 30):
     simulation_app.update()
-    if time.time() - t0 > 120:
-        print("TIMEOUT waiting for replicator", flush=True)
-        break
+    time.sleep(0.03)
 
 print("REPLICATOR FINISHED", flush=True)
 
-simulation_app.close()
-print("SIMULATION CLOSED", flush=True)
+# Avoid close() on this build (often segfaults after success)
+import os
+os._exit(0)
 
+if __name__ == "__main__":
+    main()
