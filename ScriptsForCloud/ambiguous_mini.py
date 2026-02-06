@@ -4,7 +4,12 @@
 print("=== ambiguous_mini.py STARTED ===", flush=True)
 
 from omni.isaac.kit import SimulationApp
-simulation_app = SimulationApp({"headless": True})
+simulation_app = SimulationApp({
+    "headless": True,
+    "renderer": "RayTracedLighting",
+    "windowing": "None",
+})
+
 
 import os
 import sys
