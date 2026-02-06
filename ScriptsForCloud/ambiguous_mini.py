@@ -10,14 +10,17 @@ from datetime import datetime
 import glob
 
 import carb
-import omni.replicator.core as rep
+
 from omni.isaac.kit import SimulationApp
 
-# Force headless RTX path as much as 2023.1.1 allows
 simulation_app = SimulationApp({
     "headless": True,
     "renderer": "RayTracedLighting",
+    "extra_args": [
+        "--enable", "omni.replicator.core",
+    ],
 })
+import omni.replicator.core as rep
 
 def cos_deg(deg): return math.cos(math.radians(deg))
 def sin_deg(deg): return math.sin(math.radians(deg))
