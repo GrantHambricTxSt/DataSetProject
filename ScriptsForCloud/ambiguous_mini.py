@@ -256,7 +256,7 @@ def main():
     print("STARTING REPLICATOR", flush=True)
 
     # ✅ Correct API for N frames:
-    rep.orchestrator.step(num_frames=NUM_FRAMES)
+    rep.orchestrator.step(NUM_FRAMES)
 
     # Allow frames to flush/render in headless mode
     for _ in range(NUM_FRAMES + 30):
